@@ -7,14 +7,12 @@ describe.only('Users service', function() {
     const testUsers = [{
         id: 1,
         user_name: 'bmtron',
-        full_name: 'Brendan',
-        password: 'g'
+        password: 'Goalie#30'
     },
     {
         id: 2,
         user_name: 'tmitch',
-        full_name: 'Tyler',
-        password: 'r'
+        password: 'Tyler#111'
     }
 ]
     before('make knex instance', () => {    
@@ -46,6 +44,35 @@ describe.only('Users service', function() {
                 .get('/api/users')
                 .expect(200, testUsers)
             })
+        })
+    })
+    context('happy path', () => {
+        it(`responds 200 storing bcrypted password`, () => {
+            const newUser = {
+
+                user_name: 'test user_name',
+                password: '11AAaa!!'
+            }
+            return supertest(app)
+                .post('/api/users')
+                .send(newUser)
+                .expect(201)
+                .expect(res => {
+                    expect(res.body).to.have.property('id')
+                    expect(res.body.user_name).to.eql(newUser.user_name)
+                    expect(res.body).to.not.have.property('password')
+                    expect(res.headers.location).to.eql(`/api/users/${res.body.id}`)
+                })
+                .expect(res => 
+                    db
+                    .from('theater_users')
+                    .select('*')
+                    .where({id: res.body.id})
+                    .first()
+                    .then(row => {
+                        expect(row.user_name).to.eql(newUser.user_name)
+                    })
+                )
         })
     })
 })

@@ -4,7 +4,12 @@ const path = require('path')
 
 const roomsRouter = express.Router()
 const jsonParser = express.json()
-
+function serializeRooms(room) {
+    return {
+        id: room.id,
+        name: room.name
+    }
+}
 roomsRouter.route('/')
     .get((req, res, next) => {
         RoomsService.getAllRooms(req.app.get('db'))
@@ -16,12 +21,12 @@ roomsRouter.route('/')
                     }
                 })
             }
-            res.json(rooms)
+            res.json(rooms.map(serializeRooms))
         }).catch(next)
     })
     .post(jsonParser, (req, res, next) => {
-        const { name, videos, owner } = req.body
-        const newRoom = { name, videos, owner }
+        const { name, password } = req.body
+        const newRoom = { name, password }
         for (const [key, value] of Object.entries(newRoom)) {
             if(value == null) {
                 return res.status(400).json({
@@ -39,8 +44,6 @@ roomsRouter.route('/')
             .json({
                 id: room.id,
                 name: room.name,
-                videos: room.videos,
-                owner: room.owner
             })
         }).catch(next)
     })

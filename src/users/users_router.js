@@ -13,30 +13,40 @@ usersRouter.route('/')
     }).catch(next)
 })
 .post(jsonParser, (req, res, next) => {
-    const { user_name, full_name, password} = req.body
-    const newUser = {user_name, full_name, password}
-
-    for (const [key, value] of Object.entries(newUser)) {
-        if (value == null) {
-            res.status(400).json({
-                error: {
-                    message: `Missing ${key} in request body`
-                }
+    const { user_name, password} = req.body
+    for (const field of ['user_name', 'password'])
+        if(!req.body[field])
+            return res.status(400).json({
+                error: `Missing '${field}' in request body`
             })
-        }
-    }
-    UsersService.addNewUser(req.app.get('db'), newUser)
-    .then(user => {
-        res
-        .status(201)
-        .location(path.posix.originalUrl, `/${user.id}`)
-        .json({
-            id: user.id,
-            user_name: user.user_name,
-            full_name: user.full_name,
-            password: user.password
-        })
-    }).catch(next)
+        const passwordError = UsersService.validatePassword(password)
+
+        if(passwordError)
+            return res.status(400).json({error: passwordError})
+        UsersService.hasUserWithUserName(req.app.get('db'), user_name)
+            .then(hasUserWithUserName => {
+                if(hasUserWithUserName)
+                    return res.status(400).json({
+                        error: `That user name is already taken`
+                    })
+                return UsersService.hashPassword(password)
+                    .then(hashedPassword => {
+                        const newUser = {
+                            user_name,
+                            password: hashedPassword
+                        }
+                        return UsersService.addNewUser(req.app.get('db'), newUser) 
+                            .then(user => {
+                                res
+                                .status(201)
+                                .location(path.posix.join(req.originalUrl, `/${user.id}`))
+                                .json({
+                                    id: user.id,
+                                    user_name: user.user_name
+                                })
+                            })
+                    })
+            })
 })
 usersRouter.route('/:user_id')
 .all((req, res, next) => {
